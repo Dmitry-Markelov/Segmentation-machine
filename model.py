@@ -17,11 +17,10 @@ print(f'GPU is {"ON" if tf.config.list_physical_devices("GPU") else "OFF" }')
 
 #данные
 CLASSES = 5
-CUDA_FORCE_PTX_JIT=1
 COLORS = ['black', 'white', 'red', 'green', 'blue']
 RGB_COLORS = [
     (0,   0,   0), #black
-    (255, 255,   255), #white (фары)
+    (255, 255,   255), #white (кузов)
     (255,   0, 0), #red (окна)
     (0, 0, 255), #blue (колёса)
     (0,   255,   0), #green (фары)
@@ -220,7 +219,7 @@ plt.close()
 with tf.device('/GPU:0'):
     unet_like.compile(optimizer='adam', loss=[dice_bce_mc_loss], metrics=[dice_mc_metric])
 
-history_dice = unet_like.fit(train_dataset, validation_data=test_dataset, epochs=35, initial_epoch=10)
+history_dice = unet_like.fit(train_dataset, validation_data=test_dataset, epochs=70, initial_epoch=35)
 
 unet_like.save_weights('assets/test.weights.h5')
 unet_like.load_weights('assets/test.weights.h5')
@@ -233,27 +232,27 @@ for filename in frames:
         frame = imread(filename)
         sample = resize(frame, SAMPLE_SIZE)
 
+        # Получение предсказания модели для изображения
         predict = unet_like.predict(np.expand_dims(sample, axis=0))
         predict = predict.reshape(SAMPLE_SIZE + (CLASSES,))
 
+        # Масштабирование координат
         scale = frame.shape[0] / SAMPLE_SIZE[0], frame.shape[1] / SAMPLE_SIZE[1]
 
+        # Уменьшение яркости изображения
         frame = (frame / 1.5).astype(np.uint8)
 
+        # Создание нового изображения для наложения масок
+        overlay = np.zeros_like(frame)
+
         for channel in range(1, CLASSES):
-            contour_overlay = np.zeros((frame.shape[0], frame.shape[1]))
-            contours = measure.find_contours(np.array(predict[:,:,channel]))
+            mask = np.array(predict[:, :, channel])
+            mask = resize(mask, frame.shape[:2], anti_aliasing=True)
 
-            for contour in contours:
-                rr, cc = polygon_perimeter(contour[:, 0] * scale[0],
-                                           contour[:, 1] * scale[1],
-                                           shape=contour_overlay.shape)
+            # Применение маски к overlay без прозрачности
+            overlay[mask > 0.3] = RGB_COLORS[channel]
 
-                contour_overlay[rr, cc] = 1        
 
-            contour_overlay = dilation(contour_overlay, disk(1))
-            frame[contour_overlay == 1] = RGB_COLORS[channel]
-
-        imsave(f'assets/test/{os.path.basename(filename)}', frame)
+        imsave(f'assets/test/{os.path.basename(filename)}', overlay)
     except Exception as e:
         continue

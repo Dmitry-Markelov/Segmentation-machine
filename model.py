@@ -259,6 +259,6 @@ for filename in frames:
             overlay[mask > 0.3] = RGB_COLORS[channel]
 
 
-        imsave(f'assets/test/{os.path.basename(filename)}', overlay)
+        imsave(f'assets/result/{os.path.basename(filename)}', overlay)
     except Exception as e:
         continue

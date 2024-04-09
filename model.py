@@ -221,10 +221,16 @@ with tf.device('/GPU:0'):
 
 history_dice = unet_like.fit(train_dataset, validation_data=test_dataset, epochs=70, initial_epoch=35)
 
+with open("assets/test.weights.h5", "w") as file:
+    pass
 unet_like.save_weights('assets/test.weights.h5')
 unet_like.load_weights('assets/test.weights.h5')
 
 frames = sorted(glob.glob('assets/dataset/images/*.png'))
+
+folder = "assets/result"
+if not os.path.exists(folder):
+    os.makedirs(folder) # создание папки с результатами
 
 #тест
 for filename in frames:
